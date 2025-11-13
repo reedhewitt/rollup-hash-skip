@@ -22,7 +22,7 @@ export default [
       format: 'es',
     },
     plugins: [
-      skipHash(),
+      hashSkip(),
       replace({ values: { __BUILD_TIME__: Date.now() } }),
     ],
   },
