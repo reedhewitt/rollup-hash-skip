@@ -1,0 +1,24 @@
+{
+  "name": "rollup-hash-skip",
+  "version": "1.0.0",
+  "description": "Skip file generation when source is unmodified.",
+  "keywords": [
+    "rollup",
+    "plugin"
+  ],
+  "homepage": "https://github.com/reedhewitt/rollup-hash-skip#readme",
+  "bugs": {
+    "url": "https://github.com/reedhewitt/rollup-hash-skip/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reedhewitt/rollup-hash-skip.git"
+  },
+  "license": "MIT",
+  "author": "Reed Hewitt",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
