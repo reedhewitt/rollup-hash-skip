@@ -14,36 +14,46 @@ export default function hashSkip() {
         return;
       }
 
+      const rootDir = process.cwd();
+      const hashFilePath = path.join(rootDir, '.rollup_hash_skip.json');
+      let hashData = {};
+      let updated = false;
+
+      // Load previous hashes.
+      if(fs.existsSync(hashFilePath)){
+        try {
+          hashData = JSON.parse(fs.readFileSync(hashFilePath, 'utf8'));
+        } catch {
+          updated = true;
+          console.warn('[hash-skip] Could not parse existing hash file; starting fresh.');
+        }
+      }
+
       for(const [fileName, asset] of Object.entries(bundle)){
-        if (!asset || !asset.moduleIds || asset.moduleIds.length === 0) continue;
+        if(!asset || !asset.moduleIds || asset.moduleIds.length === 0) continue;
 
         // Create a temp file list for xxhash.
         const fileList = asset.moduleIds.filter(fs.existsSync);
-        if (fileList.length === 0) continue;
+        if(fileList.length === 0) continue;
 
-        // Combine all source file contents in one command for hashing.
-        const catCmd = process.platform === 'win32'
-          ? `type ${fileList.map(f => `"${f}"`).join(' ')}`
-          : `cat ${fileList.map(f => `'${f}'`).join(' ')}`;
+        const hash = execSync(`cat ${fileList.map(f => `'${f}'`).join(' ')} | xxhsum | awk '{print $1}'`, { encoding: 'utf8' }).trim();
+        const inputKey = asset.facadeModuleId || fileName;
+        const prevHash = hashData?.[inputKey];
 
-        const hash = execSync(`${catCmd} | xxhsum | awk '{print $1}'`, { encoding: 'utf8' }).trim();
-
-        const sourcePath = asset.facadeModuleId || fileName;
-        const dotFile = path.resolve(path.dirname(sourcePath), `.${path.basename(sourcePath)}.hash`);
-
-        let prevHash = null;
-        if (fs.existsSync(dotFile)) {
-          prevHash = fs.readFileSync(dotFile, 'utf8').trim();
-        }
-
-        if (prevHash === hash) {
+        if(prevHash === hash){
           // Prevent Rollup from emitting.
-          console.log(`[hash-skip] No source changes in ${fileName}, skipping output.`);
           delete bundle[fileName];
+          console.log(`[hash-skip] No source changes in ${fileName}, skipping output.`);
         } else {
-          fs.writeFileSync(dotFile, hash, 'utf8');
+          hashData[inputKey] = hash;
+          updated = true;
           console.log(`[hash-skip] Updated hash for ${fileName}.`);
         }
+      }
+
+      // Save updated hash file only if something changed.
+      if(updated){
+        fs.writeFileSync(hashFilePath, JSON.stringify(hashData, null, 2), 'utf8');
       }
     }
   };
