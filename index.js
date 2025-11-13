@@ -7,21 +7,21 @@ export default function hashSkip() {
     name: 'hash-skip',
 
     async generateBundle(options, bundle){
+      const hasxxhash = !!execSync('which xxhsum');
+
+      if(!hasxxhash){
+        console.log('[hash-skip] This plugin requires xxhash. Install xxhash to enable hash-based skipping of unmodified files.');
+        return;
+      }
+
       for(const [fileName, asset] of Object.entries(bundle)){
         if (!asset || !asset.moduleIds || asset.moduleIds.length === 0) continue;
 
-        // Create a temp file list for xxhash
+        // Create a temp file list for xxhash.
         const fileList = asset.moduleIds.filter(fs.existsSync);
         if (fileList.length === 0) continue;
 
-        const hasxxhash = (() => { try { return !!execSync('xxhsum --version', { stdio: 'ignore' }); } catch { return false; } })();
-
-        if(!hasxxhash){
-          console.log('[hash-skip] This plugin requires xxhash. Install xxhash to enable hash-based skipping of unmodified files.');
-          continue;
-        }
-
-        // Combine all source file contents in one command for hashing
+        // Combine all source file contents in one command for hashing.
         const catCmd = process.platform === 'win32'
           ? `type ${fileList.map(f => `"${f}"`).join(' ')}`
           : `cat ${fileList.map(f => `'${f}'`).join(' ')}`;
@@ -37,8 +37,9 @@ export default function hashSkip() {
         }
 
         if (prevHash === hash) {
+          // Prevent Rollup from emitting.
           console.log(`[hash-skip] No source changes in ${fileName}, skipping output.`);
-          delete bundle[fileName]; // prevent Rollup from emitting
+          delete bundle[fileName];
         } else {
           fs.writeFileSync(dotFile, hash, 'utf8');
           console.log(`[hash-skip] Updated hash for ${fileName}.`);
