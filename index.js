@@ -93,7 +93,12 @@ export default function hashSkip(){
 
       // Save updated hash file only if something changed.
       if(updated) save();
-    }
+    },
+
+    // Expose these utility functions for the rollup config script.
+    getFileModTime,
+    getValue,
+    setValue,
   };
 }
 
