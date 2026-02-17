@@ -1,8 +1,20 @@
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'crypto';
 import { execSync } from 'child_process';
 
 var hashData = null;
+
+function hashFromFiles(fileList){
+  return fileList.reduce((acc, file) => {
+    try {
+      return acc.update(fs.readFileSync(file));
+    } catch (e) {
+      return acc;
+    }
+  }, createHash('sha256'))
+  .digest('hex');
+}
 
 function loadHashData(){
   if(hashData !== null) return;
@@ -52,21 +64,14 @@ export default function hashSkip(forceUpdate = false){
     name: 'hash-skip',
 
     async generateBundle(options, bundle){
-      const hasxxhash = !!execSync('which xxhsum');
-
-      if(!hasxxhash){
-        console.log('[hash-skip] This plugin requires xxhash. Install xxhash to enable hash-based skipping of unmodified files.');
-        return;
-      }
-
       const rootDir = process.cwd();
-      loadHashData();
       let updated = false;
+      loadHashData();
 
       // Load previous hashes.
       if(!hashData || Object.keys(hashData).length === 0){
         updated = true;
-        console.warn('[hash-skip] No existing hash data; starting fresh.');
+        console.log('[hash-skip] No existing hash data; starting fresh.');
       }
 
       for(const [fileName, asset] of Object.entries(bundle)){
@@ -76,7 +81,7 @@ export default function hashSkip(forceUpdate = false){
         const fileList = asset.moduleIds.filter(fs.existsSync);
         if(fileList.length === 0) continue;
 
-        const hash = execSync(`cat ${fileList.map(f => `'${f}'`).join(' ')} | xxhsum | awk '{print $1}'`, { encoding: 'utf8' }).trim();
+        const hash = hashFromFiles(fileList);
         let inputKey = asset.facadeModuleId.replace(rootDir, '') || fileName;
         while(inputKey[0] === '/') inputKey = inputKey.slice(1);
         inputKey += ':hash';
