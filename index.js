@@ -47,7 +47,7 @@ function getFileModTime(relativeFilePath){
   return fs.statSync(filePath)?.mtime ?? null;
 }
 
-export default function hashSkip(){
+export default function hashSkip(forceUpdate = false){
   return {
     name: 'hash-skip',
 
@@ -82,7 +82,7 @@ export default function hashSkip(){
         inputKey += ':hash';
         const prevHash = hashData?.[inputKey];
 
-        if(prevHash === hash){
+        if(prevHash === hash && !forceUpdate){
           // Prevent Rollup from emitting.
           delete bundle[fileName];
           console.log(`[hash-skip] No source changes in ${fileName}, skipping output.`);
