@@ -77,7 +77,9 @@ export default function hashSkip(){
         if(fileList.length === 0) continue;
 
         const hash = execSync(`cat ${fileList.map(f => `'${f}'`).join(' ')} | xxhsum | awk '{print $1}'`, { encoding: 'utf8' }).trim();
-        const inputKey = asset.facadeModuleId.replace(rootDir, '') || fileName;
+        let inputKey = asset.facadeModuleId.replace(rootDir, '') || fileName;
+        while(inputKey[0] === '/') inputKey = inputKey.slice(1);
+        inputKey += ':hash';
         const prevHash = hashData?.[inputKey];
 
         if(prevHash === hash){
