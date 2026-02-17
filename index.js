@@ -2,11 +2,54 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 
+var hashData = null;
+
+function loadHashData(){
+  if(hashData !== null) return;
+
+  const rootDir = process.cwd();
+  const hashFilePath = path.join(rootDir, '.rollup_hash_skip.json');
+
+  if(!fs.existsSync(hashFilePath)){
+    hashData = {};
+    return;
+  }
+
+  try {
+    hashData = JSON.parse(fs.readFileSync(hashFilePath, 'utf8'));
+    if(!hashData || typeof hashData !== 'object') hashData = {};
+  } catch {
+    hashData = {};
+  }
+},
+
+function save(){
+  const rootDir = process.cwd();
+  const hashFilePath = path.join(rootDir, '.rollup_hash_skip.json');
+  fs.writeFileSync(hashFilePath, JSON.stringify(hashData, null, 2), 'utf8');
+},
+
+function getValue(key){
+  loadHashData();
+  return hashData?.[key] ?? null;
+},
+
+function setValue(key, value){
+  loadHashData();
+  hashData[key] = value;
+  save();
+},
+
+function getFileModTime(relativeFilePath){
+  while(relativeFilePath[0] === '/') relativeFilePath = relativeFilePath.slice(1);
+  const rootDir = process.cwd();
+  const filePath = path.join(rootDir, relativeFilePath);
+  return fs.statSync(filePath)?.mtime ?? null;
+}
+
 export default function hashSkip(){
   return {
     name: 'hash-skip',
-
-    hashData: null,
 
     async generateBundle(options, bundle){
       const hasxxhash = !!execSync('which xxhsum');
@@ -17,11 +60,11 @@ export default function hashSkip(){
       }
 
       const rootDir = process.cwd();
-      this.loadHashData();
+      loadHashData();
       let updated = false;
 
       // Load previous hashes.
-      if(Object.keys(this.hashData).length === 0){
+      if(!hashData || Object.keys(hashData).length === 0){
         updated = true;
         console.warn('[hash-skip] No existing hash data; starting fresh.');
       }
@@ -35,64 +78,21 @@ export default function hashSkip(){
 
         const hash = execSync(`cat ${fileList.map(f => `'${f}'`).join(' ')} | xxhsum | awk '{print $1}'`, { encoding: 'utf8' }).trim();
         const inputKey = asset.facadeModuleId.replace(rootDir, '') || fileName;
-        const prevHash = this.hashData?.[inputKey];
+        const prevHash = hashData?.[inputKey];
 
         if(prevHash === hash){
           // Prevent Rollup from emitting.
           delete bundle[fileName];
           console.log(`[hash-skip] No source changes in ${fileName}, skipping output.`);
         } else {
-          this.hashData[inputKey] = hash;
+          hashData[inputKey] = hash;
           updated = true;
           console.log(`[hash-skip] Updated hash for ${fileName}.`);
         }
       }
 
       // Save updated hash file only if something changed.
-      if(updated) this.save();
-    },
-
-    loadHashData(){
-      if(this.hashData !== null) return;
-
-      const rootDir = process.cwd();
-      const hashFilePath = path.join(rootDir, '.rollup_hash_skip.json');
-
-      if(!fs.existsSync(hashFilePath)){
-        this.hashData = {};
-        return;
-      }
-
-      try {
-        this.hashData = JSON.parse(fs.readFileSync(hashFilePath, 'utf8'));
-        if(!this.hashData || typeof this.hashData !== 'object') this.hashData = {};
-      } catch {
-        this.hashData = {};
-      }
-    },
-
-    save(){
-      const rootDir = process.cwd();
-      const hashFilePath = path.join(rootDir, '.rollup_hash_skip.json');
-      fs.writeFileSync(hashFilePath, JSON.stringify(this.hashData, null, 2), 'utf8');
-    },
-
-    getValue(key){
-      this.loadHashData();
-      return this.hashData?.[key] ?? null;
-    },
-
-    setValue(key, value){
-      this.loadHashData();
-      this.hashData[key] = value;
-      this.save();
-    },
-
-    getFileModTime(relativeFilePath){
-      while(relativeFilePath[0] === '/') relativeFilePath = relativeFilePath.slice(1);
-      const rootDir = process.cwd();
-      const filePath = path.join(rootDir, relativeFilePath);
-      return fs.statSync(filePath)?.mtime ?? null;
+      if(updated) save();
     }
   };
 }
