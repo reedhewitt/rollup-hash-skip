@@ -21,24 +21,24 @@ function loadHashData(){
   } catch {
     hashData = {};
   }
-},
+}
 
 function save(){
   const rootDir = process.cwd();
   const hashFilePath = path.join(rootDir, '.rollup_hash_skip.json');
   fs.writeFileSync(hashFilePath, JSON.stringify(hashData, null, 2), 'utf8');
-},
+}
 
 function getValue(key){
   loadHashData();
   return hashData?.[key] ?? null;
-},
+}
 
 function setValue(key, value){
   loadHashData();
   hashData[key] = value;
   save();
-},
+}
 
 function getFileModTime(relativeFilePath){
   while(relativeFilePath[0] === '/') relativeFilePath = relativeFilePath.slice(1);
